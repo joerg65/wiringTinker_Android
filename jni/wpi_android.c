@@ -47,7 +47,7 @@ void Java_com_jw_wiringpi_wpiAndroid_pinMode(JNIEnv* env, jobject obj, jint port
 }
 
 JNIEXPORT
-jint Java_com_jw_wiringpi_wpi_android_digitalRead(JNIEnv* env, jobject obj, jint port) {
+jint Java_com_jw_wiringpi_wpiAndroid_digitalRead(JNIEnv* env, jobject obj, jint port) {
     return digitalRead(port);
 }
 
