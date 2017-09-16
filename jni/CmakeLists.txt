@@ -1,0 +1,78 @@
+
+cmake_minimum_required(VERSION 3.4.1)
+
+set(CMAKE_VERBOSE_MAKEFILE on)
+
+find_library( log-lib log )
+
+#set(distribution_DIR ${CMAKE_SOURCE_DIR}/../../../../distribution)
+set(distribution_DIR /home/joerg/Development/Ndk)
+
+
+#add_library( wiringPi SHARED IMPORTED )
+
+#set_target_properties( wiringPi PROPERTIES IMPORTED_LOCATION
+#                       ${distribution_DIR}/wiringTinker/libs/${ANDROID_ABI}/libwiringPi.so )
+
+
+#include_directories( ${distribution_DIR}/wiringTinker/jni/wiringPi )
+
+
+
+include_directories( ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringPi
+                     ${distribution_DIR}/wiringTinker/jni/wiringPi )
+
+
+######################################################################
+# library wiringPi
+######################################################################
+
+add_library( wiringPi SHARED
+
+             # Provides a relative path to your source file(s).
+             # Associated headers in the same location as their source
+             # file are automatically included.
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringSerial.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringPi.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringShift.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/piHiPri.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/piThread.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringPiSPI.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/wiringPiI2C.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/softPwm.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/softTone.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp23008.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp23016.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp23017.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp23s08.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp23s17.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/sr595.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/pcf8574.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/pcf8591.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp3002.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp3004.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp4802.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/mcp3422.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/max31855.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/max5322.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/sn3218.c
+             ${distribution_DIR}/wiringTinker/jni/wiringPi/drcSerial.c )
+
+target_link_libraries( wiringPi ${log-lib} )
+
+######################################################################
+# end of library wiringPi
+######################################################################
+
+
+######################################################################
+# library wpi_android
+######################################################################
+
+add_library( wpi_android SHARED wpi_android.cpp )
+
+target_link_libraries( wpi_android wiringPi log  )
+
+######################################################################
+# end of library wpi_android
+#####################################################################

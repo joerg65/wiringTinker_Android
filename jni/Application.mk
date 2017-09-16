@@ -1,0 +1,3 @@
+NDK_TOOLCHAIN_VERSION=clang
+APP_ABI := armeabi
+APP_PLATFORM := android-21
