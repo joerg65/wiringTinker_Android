@@ -22,7 +22,8 @@ adb push ../libs/armeabi/gpio /system/bin/
 Also with a rooted TinkerBoard, it is not possible to access the /dev/mem from an app. So to use the library from an app, it is needed a custom kernel with a gpiomem driver. 
 Without gpiomem driver, you can access the library only from root shell.
 
-The libwpi_android.so is the library you can load in your java code:
+The libwpi_android.so is the library you can load in your java code:<br>
+wpiAndroid.java
 ```
 package com.jw.wiringpi;
 
@@ -41,4 +42,48 @@ public final class wpiAndroid {
     static public native void softPwmStop   (int port) ;
 }
 ```
+Then you can import the functions to your project:
+```
+import static com.jw.wiringpi.wpiAndroid.digitalRead;
+import static com.jw.wiringpi.wpiAndroid.digitalWrite;
+import static com.jw.wiringpi.wpiAndroid.pinMode;
+import static com.jw.wiringpi.wpiAndroid.pullUpDnControl;
+import static com.jw.wiringpi.wpiAndroid.wiringPiSetup;
+.
+.
+.
+public static final int INPUT = 0;
+public static final int OUTPUT = 1;
+public static final int PWM_OUTPUT = 2;
+public static final int GPIO_CLOCK = 3;
+public static final int SOFT_PWM_OUTPUT = 4;
+public static final int SOFT_TONE_OUTPUT = 5;
+public static final int PWM_TONE_OUTPUT = 6;
 
+public static final int PUD_OFF = 0;
+public static final int PUD_DOWN = 1;
+public static final int PUD_UP = 2;
+
+public static final int INT_EDGE_SETUP = 0;
+public static final int INT_EDGE_FALLING = 1;
+public static final int INT_EDGE_RISING = 2;
+public static final int INT_EDGE_BOTH = 3;
+.
+.
+.
+if (wiringPiSetup() != 0) {
+    Log.e(TAG, "Error setting up wiringPi!");
+}
+        
+pinMode(24, INPUT);
+pullUpDnControl(24, PUD_DOWN);
+int in24 = digitalRead(24);
+```
+And in build.gradle need to be adjusted the path to the libraries:
+```
+sourceSets {
+    main {
+        // let gradle pack the shared library into apk
+        jniLibs.srcDirs = ['path/to/wiringPi/libs']
+}
+```
