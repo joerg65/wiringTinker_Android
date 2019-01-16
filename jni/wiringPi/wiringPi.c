@@ -98,6 +98,15 @@
 #define	PI_GPIO_MASK	(0xFFFFFFC0)
 #endif
 
+
+#ifdef ANDROID
+#include <android/log.h>
+#define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+#define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
+#define LOG_TAG "wiringPi-android"
+#define printf	LOGI
+#endif
+
 struct wiringPiNodeStruct *wiringPiNodes = NULL ;
 
 // BCM Magic
@@ -297,7 +306,7 @@ static pthread_mutex_t pinMutex ;
 
 // Debugging & Return codes
 
-int wiringPiDebug       = FALSE ;
+int wiringPiDebug       = TRUE ;
 int wiringPiReturnCodes = FALSE ;
 
 // Use /dev/gpiomem ?
@@ -929,6 +938,7 @@ void piBoardId (int *model, int *rev, int *mem, int *maker, int *warranty)
 		else if (strcmp (c, "0014") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
 		else if (strcmp (c, "0015") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
 		else if (strcmp (c, "0000") == 0) { *model = PI_MODEL_TB ; *rev = PI_VERSION_1_2 ; *mem = 3 ; *maker = PI_MAKER_ASUS	; }
+        else if (strcmp (c, "00c0") == 0) { *model = PI_MODEL_TB ; *rev = PI_VERSION_1_2 ; *mem = 3 ; *maker = PI_MAKER_ASUS	; }
 		else                              { *model = 0           ; *rev = 0              ; *mem = 0 ; *maker = 0 				; }
 	}
 }
@@ -1456,6 +1466,9 @@ void pullUpDnControl (int pin, int pud)
 int digitalRead (int pin)
 {
 	char c ;
+
+    //printf("mode  = %d,pin = %d\n",wiringPiMode,pin);
+
 	struct wiringPiNodeStruct *node = wiringPiNodes ;
 	if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
 	{
@@ -1503,6 +1516,7 @@ void digitalWrite (int pin, int value)
 {
 	struct wiringPiNodeStruct *node = wiringPiNodes ;
 	//printf("mode  = %d,pin = %d\n",wiringPiMode,pin);
+    printf("mode  = %d,pin = %d\n",wiringPiMode,pin);
 	if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
 	{
 		if (wiringPiMode == WPI_MODE_GPIO_SYS)	// Sys mode
@@ -1781,10 +1795,12 @@ static void *interruptHandler (void *arg)
 	myPin   = pinPass ;
 	pinPass = -1 ;
 
-	for (;;)
-		if (waitForInterrupt (myPin, -1) > 0)
-			isrFunctions [myPin] () ;
-
+	for (;;) {
+		if (waitForInterrupt (myPin, -1) > 0) {
+            if (isrFunctions [myPin] == NULL) break;
+            isrFunctions [myPin] () ;
+        }
+    }
 	return NULL ;
 }
 
@@ -1801,12 +1817,20 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 {
 	pthread_t threadId ;
 	const char *modeS ;
-	char fName   [64] ;
+	char fName   [128] ;
+
 	char  pinS [8] ;
 	pid_t pid ;
 	int   count, i ;
 	char  c ;
 	int   bcmGpioPin ;
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR called\n");
+    }
+
+
+
 	#ifdef TINKER_BOARD
 	if ((((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS)) && ((pin < 0) || (pin > 63))) ||
 	    (((wiringPiMode == WPI_MODE_GPIO) || (wiringPiMode == WPI_MODE_GPIO_SYS)) && ((pin < 0) || (pin > 257))))
@@ -1817,6 +1841,11 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 	if ((pin < 0) || (pin > 63))
 		return wiringPiFailure (WPI_FATAL, "wiringPiISR: pin must be 0-63 (%d)\n", pin) ;
 	#endif
+
+    if (function == NULL) {
+        isrFunctions [pin] = NULL;
+        return 0;
+    }
 
 	/**/ if (wiringPiMode == WPI_MODE_UNINITIALISED)
 		return wiringPiFailure (WPI_FATAL, "wiringPiISR: wiringPi has not been initialised. Unable to continue.\n") ;
@@ -1833,6 +1862,10 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 	//	is a way that will work when we're running in "Sys" mode, as
 	//	a non-root user. (without sudo)
 
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR export the pin %d\n", bcmGpioPin);
+    }
+
 	if (mode != INT_EDGE_SETUP)
 	{
 		/**/ if (mode == INT_EDGE_FALLING)
@@ -1847,7 +1880,11 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 		if ((pid = fork ()) < 0)	// Fail
 			return wiringPiFailure (WPI_FATAL, "wiringPiISR: fork failed: %s\n", strerror (errno)) ;
 
-		if (pid == 0)	// Child, exec
+        if (wiringPiDebug) {
+            printf ("wiringPi: wiringPiISR got root\n");
+        }
+
+        if (pid == 0)	// Child, exec
 		{
 			/**/ if (access ("/usr/local/bin/gpio", X_OK) == 0)
 			{
@@ -1862,7 +1899,12 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 #ifdef ANDROID
 			else if (access ("/system/bin/gpio", X_OK) == 0) //Android
 			{
-				execl ("/system/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
+                if (wiringPiDebug) {
+                    printf ("wiringPi: wiringPiISR access gpio executable\n");
+                }
+                //sprintf (fName, "/system/bin/gpio edge %d falling", bcmGpioPin) ;
+                //execl ("/system/xbin/su", "su", "-c", fName, (char *)NULL) ;
+                execl ("/system/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
 					return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
 			}
 #endif
@@ -1873,30 +1915,93 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 			wait (NULL) ;
 	}
 
-	// Now pre-open the /sys/class node - but it may already be open if
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR called gpio executable\n");
+    }
+
+#ifdef ANDROID
+    /*
+    if ((pid = fork ()) < 0)	// Fail
+        return wiringPiFailure (WPI_FATAL, "wiringPiISR: fork failed: %s\n", strerror (errno)) ;
+    if (pid == 0)	// Child, exec
+    {
+        sprintf (fName, "/system/bin/chmod 666 /sys/class/gpio/gpio%d/value", bcmGpioPin) ;
+        execl ("/system/xbin/su", "su", "-c", fName, (char *)NULL) ;
+        return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
+    }
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR changed permission\n");
+    }
+
+    sprintf (fName, "/system/xbin/su -c \"/system/bin/chmod 666 /sys/class/gpio/gpio%d/value\"", bcmGpioPin) ;
+    system(fName);
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR changed permission2\n");
+    }
+    */
+#endif
+
+    // Now pre-open the /sys/class node - but it may already be open if
 	//	we are in Sys mode...
 
 	if (sysFds [bcmGpioPin] == -1)
 	{
 		sprintf (fName, "/sys/class/gpio/gpio%d/value", bcmGpioPin) ;
-		if ((sysFds [bcmGpioPin] = open (fName, O_RDWR)) < 0)
+        if (wiringPiDebug) {
+            printf ("wiringPi: wiringPiISR: %s\n", fName);
+        }
+
+        if ((sysFds [bcmGpioPin] = open (fName, O_RDWR)) < 0)
 			return wiringPiFailure (WPI_FATAL, "wiringPiISR: unable to open %s: %s\n", fName, strerror (errno)) ;
 	}
 
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR opened sysfs gpio\n");
+    }
 	// Clear any initial pending interrupt
 
 	ioctl (sysFds [bcmGpioPin], FIONREAD, &count) ;
 	for (i = 0 ; i < count ; ++i)
 		read (sysFds [bcmGpioPin], &c, 1) ;
 
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR cleared interrupt\n");
+    }
+
 	isrFunctions [pin] = function ;
 
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR function assigned\n");
+    }
+
 	pthread_mutex_lock (&pinMutex) ;
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR pthread_mutex locked\n");
+    }
+
 	pinPass = pin ;
 	pthread_create (&threadId, NULL, interruptHandler, NULL) ;
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR created pthread\n");
+    }
+
 	while (pinPass != -1)
 		delay (1) ;
-	pthread_mutex_unlock (&pinMutex) ;
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR pin passed\n");
+    }
+
+    pthread_mutex_unlock (&pinMutex) ;
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiISR pthread_mutex unlocked\n");
+    }
 
 	return 0 ;
 }
@@ -2043,13 +2148,17 @@ int wiringPiSetup (void)
 		wiringPiDebug = TRUE ;
 	if (getenv (ENV_CODES) != NULL)
 		wiringPiReturnCodes = TRUE ;
-	if (getenv (ENV_GPIOMEM) != NULL)
-		wiringPiTryGpioMem = TRUE ;
+//	if (getenv (ENV_GPIOMEM) != NULL)
+//		wiringPiTryGpioMem = TRUE ;
+
 	if (wiringPiDebug)
 	{
 		printf ("wiringPi: wiringPiSetup called\n") ;
-		if (wiringPiTryGpioMem)
-			printf ("wiringPi: Using /dev/gpiomem\n") ;
+#ifdef TINKER_BOARD
+        printf ("wiringPi: TinkerBoard Version\n") ;
+#endif
+//		if (wiringPiTryGpioMem)
+//			printf ("wiringPi: Using /dev/gpiomem\n") ;
 	}
 	#ifdef TINKER_BOARD
 	pinToGpio =  asus_get_pinToGpio(piGpioLayout());

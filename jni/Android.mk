@@ -34,7 +34,7 @@ LOCAL_SRC_FILES := \
     wiringPi/drcSerial.c \
 	wiringPi/wpiExtensions.c
 
-LOCAL_CFLAGS    += -UNDEBUG -DANDROID -DTINKER_BOARD
+LOCAL_CFLAGS    += -DDEBUG -DANDROID -DTINKER_BOARD
 
 LOCAL_LDLIBS    := -ldl -llog
 include $(BUILD_SHARED_LIBRARY)
@@ -66,12 +66,12 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += \
-    $(LOCAL_PATH)/wiringPi \
-    $(LOCAL_PATH)/devLib/
+   $(LOCAL_PATH)/wiringPi \
+   $(LOCAL_PATH)/devLib/
 
 LOCAL_MODULE    := wpi_android
 LOCAL_SRC_FILES := \
-    wpi_android.c 
+    wpi_android.c
 LOCAL_LDLIBS    := -ldl -llog
 LOCAL_SHARED_LIBRARIES := libwiringPi libwiringPiDev
 include $(BUILD_SHARED_LIBRARY)

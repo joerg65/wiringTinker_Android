@@ -22,7 +22,6 @@
  ***********************************************************************
  */
 
-
 #include <stdint.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -33,6 +32,14 @@
 #include "wiringPi.h"
 
 #include "wiringPiSPI.h"
+
+#ifdef ANDROID
+#include <android/log.h>
+#define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+#define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
+#define LOG_TAG "wiringPi-android"
+#define printf	LOGI
+#endif
 
 
 // The SPI bus parameters
@@ -79,6 +86,12 @@ int wiringPiSPIDataRW (int channel, unsigned char *data, int len)
 
   channel &= 1 ;
 
+
+    /*
+  if (wiringPiDebug) {
+    printf ("wiringPi: wiringPiSPI.data: %01X %01x %01x %01x\n", data[0],  data[1], data[2], data[3]);
+  }*/
+
 // Mentioned in spidev.h but not used in the original kernel documentation
 //	test program )-:
 
@@ -105,6 +118,10 @@ int wiringPiSPISetupMode (int channel, int speed, int mode)
 {
   int fd ;
 
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiSPISetupMode called\n");
+    }
+
   mode    &= 3 ;	// Mode is 0, 1, 2 or 3
   channel &= 1 ;	// Channel is 0 or 1
 
@@ -115,6 +132,10 @@ int wiringPiSPISetupMode (int channel, int speed, int mode)
   spiFds    [channel] = fd ;
 
 // Set SPI parameters.
+
+    if (wiringPiDebug) {
+        printf ("wiringPi: Set SPI parameters\n");
+    }
 
   if (ioctl (fd, SPI_IOC_WR_MODE, &mode)            < 0)
     return wiringPiFailure (WPI_ALMOST, "SPI Mode Change failure: %s\n", strerror (errno)) ;
@@ -137,5 +158,8 @@ int wiringPiSPISetupMode (int channel, int speed, int mode)
 
 int wiringPiSPISetup (int channel, int speed)
 {
+    if (wiringPiDebug) {
+        printf ("wiringPi: wiringPiSPISetup called\n");
+    }
   return wiringPiSPISetupMode (channel, speed, 0) ;
 }

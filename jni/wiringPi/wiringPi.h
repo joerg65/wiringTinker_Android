@@ -99,7 +99,7 @@
 #define PI_MAKER_ASUS		4
 
 
-
+extern int wiringPiDebug;
 
 extern const char *piModelNames    [16] ;
 extern const char *piRevisionNames [16] ;

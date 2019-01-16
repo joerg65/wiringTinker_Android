@@ -58,6 +58,7 @@ extern void doPins       (void) ;
 #define	I2CDETECT		"/usr/sbin/i2cdetect"
 
 int wpMode ;
+int gpiomem;
 
 char *usage = "Usage: gpio -v\n"
               "       gpio -h\n"
@@ -1187,6 +1188,13 @@ static void doVersion (char *argv [])
     	printf ("  Type: %s, Revision: %s, Memory: %dMB, Maker: %s %s\n", 
 	piModelNames [model], piRevisionNames [rev], piMemorySize [mem], piMakerNames [maker], warranty ? "[Out of Warranty]" : "") ;
 	
+    if (stat ("/dev/gpiomem", &statBuf) == 0)		// User level GPIO is GO
+    {
+      printf ("  This TinkerBoard supports user-level GPIO access.\n") ;
+      printf ("    -> See the man-page for more details\n") ;
+    }
+    else
+      printf ("  * Root or sudo required for GPIO access.\n") ;
 
   }//if(model == PI_MODEL_TB)
   else
@@ -1220,6 +1228,16 @@ static void doVersion (char *argv [])
 
 int main (int argc, char *argv [])
 {
+
+  struct stat statBuf ;
+
+  gpiomem = FALSE;
+
+    if (stat ("/dev/gpiomem", &statBuf) == 0)		// User level GPIO is GO
+    {
+      gpiomem = TRUE;
+    }
+
   int i ;
   if (getenv ("WIRINGPI_DEBUG") != NULL)
   {
@@ -1279,10 +1297,12 @@ int main (int argc, char *argv [])
     return 0 ;
   }
 
+  if (gpiomem == FALSE) {
   if (geteuid () != 0)
-  {
-    fprintf (stderr, "%s: Must be root to run. Program should be suid root. This is an error.\n", argv [0]) ;
-    return 1 ;
+    {
+      fprintf (stderr, "%s: Must be root to run. Program should be suid root. This is an error.\n", argv [0]) ;
+      return 1 ;
+    }
   }
 
 // Initial test for /sys/class/gpio operations:
