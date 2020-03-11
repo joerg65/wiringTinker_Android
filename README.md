@@ -1,6 +1,8 @@
 # wiringPi TinkerBoard
 wiringPi for TinkerBoard ported to Android.
 
+If you need to compile for Android 7.1.2, please use this repository instead: https://github.com/joerg65/wiringTinker_7.1.2
+
 To compile the library, execute from the jni folder the command: 
 ```
 "/path/to/your/SDK/ndk-bundle/ndk-build -B"
